@@ -83,6 +83,7 @@ namespace Simulator.Map
         {
             var location = new GpsLocation();
 
+            // 分别计算出结构体GpsLocation中的各项
             GetNorthingEasting(position, out location.Northing, out location.Easting, ignoreMapOrigin);
             GetLatitudeLongitude(location.Northing, location.Easting, out location.Latitude, out location.Longitude, ignoreMapOrigin);
 

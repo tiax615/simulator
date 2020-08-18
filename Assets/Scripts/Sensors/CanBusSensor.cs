@@ -23,7 +23,7 @@ namespace Simulator.Sensors
         public float Frequency = 10.0f;
 
         uint SendSequence;
-        float NextSend;
+        float NextSend; // 下次更新的时间
 
         IBridge Bridge;
         IWriter<CanBusData> Writer;
@@ -39,10 +39,10 @@ namespace Simulator.Sensors
 
         private void Awake()
         {
-            RigidBody = GetComponentInParent<Rigidbody>();
-            Actions = GetComponentInParent<VehicleActions>();
-            Dynamics = GetComponentInParent<IVehicleDynamics>();
-            MapOrigin = MapOrigin.Find();
+            RigidBody = GetComponentInParent<Rigidbody>(); // 父物体（Lincoln2017MKZ (Apollo 5.0)）的刚体组件
+            Actions = GetComponentInParent<VehicleActions>(); // 父物体上的VehicleActions.cs
+            Dynamics = GetComponentInParent<IVehicleDynamics>(); // 父物体上的IVehicleDynamics.cs（接口）
+            MapOrigin = MapOrigin.Find(); // 找到地图原点
         }
 
         public override void OnBridgeSetup(IBridge bridge)
@@ -53,7 +53,7 @@ namespace Simulator.Sensors
 
         public void Start()
         {
-            NextSend = Time.time + 1.0f / Frequency;
+            NextSend = Time.time + 1.0f / Frequency; // 根据频率计算第一次NextSend时间
         }
 
         public void Update()
@@ -63,27 +63,27 @@ namespace Simulator.Sensors
                 return;
             }
 
-            if (Time.time < NextSend)
+            if (Time.time < NextSend) // 当前时间没到NextSend时，return
             {
                 return;
             }
-            NextSend = Time.time + 1.0f / Frequency;
+            NextSend = Time.time + 1.0f / Frequency; // 下次的更新时间NextSend
 
-            float speed = RigidBody.velocity.magnitude;
+            float speed = RigidBody.velocity.magnitude; // 获取自车刚体速度的模
 
-            var gps = MapOrigin.GetGpsLocation(transform.position);
+            var gps = MapOrigin.GetGpsLocation(transform.position); // 获取gps信息，类型是结构体GpsLocation
 
-            msg = new CanBusData()
+            msg = new CanBusData() // 构造CanBusData类
             {
-                Name = Name,
-                Frame = Frame,
-                Time = SimulatorManager.Instance.CurrentTime,
-                Sequence = SendSequence++,
+                Name = Name, // "CAN Bus"
+                Frame = Frame, // ""
+                Time = SimulatorManager.Instance.CurrentTime, // SimulatorManager单例的CurrentTime
+                Sequence = SendSequence++, // 序列序号++
 
                 Speed = speed,
 
-                Throttle = Dynamics.AccellInput > 0 ? Dynamics.AccellInput : 0,
-                Braking = Dynamics.AccellInput < 0 ? -Dynamics.AccellInput : 0,
+                Throttle = Dynamics.AccellInput > 0 ? Dynamics.AccellInput : 0, // VehicleSMI中的AccellInput>0时，赋值给油门值Throttle
+                Braking = Dynamics.AccellInput < 0 ? -Dynamics.AccellInput : 0, // VehicleSMI中的AccellInput<0时，赋值给刹车值Braking
                 Steering = Dynamics.SteerInput,
 
                 ParkingBrake = Dynamics.HandBrake,
@@ -107,10 +107,11 @@ namespace Simulator.Sensors
                 Longitude = gps.Longitude,
                 Altitude = gps.Altitude,
 
-                Orientation = transform.rotation,
+                Orientation = transform.rotation, // 传感器自身的四元数
                 Velocity = RigidBody.velocity,
             };
 
+            // 如果Bridge不为空，且状态是连接时，将msg写入Writer
             if (Bridge != null && Bridge.Status == Status.Connected)
             {
                 Writer.Write(msg, null);
@@ -126,6 +127,7 @@ namespace Simulator.Sensors
                 return;
             }
 
+            // 如果msg不为空，将msg的内容存在字典graphData中
             var graphData = new Dictionary<string, object>()
             {
                 {"Speed", msg.Speed},
@@ -149,6 +151,8 @@ namespace Simulator.Sensors
                 {"Orientation", msg.Orientation},
                 {"Velocity", msg.Velocity},
             };
+
+            // 将graphData更新在界面上
             visualizer.UpdateGraphValues(graphData);
         }
 

@@ -47,11 +47,13 @@ namespace Simulator.Sensors
 
         private void Awake()
         {
+            // 将子物体RangeShort和RangeFar挂载的RadarMesh.cs，增加到列表radars中
             radars.AddRange(GetComponentsInChildren<RadarMesh>());
             foreach (var radar in radars)
             {
-                radar.Init();
+                radar.Init(); // 初始化每个RadarMesh
             }
+            // 在NPCManager中注册了Despawn回调？
             SimulatorManager.Instance.NPCManager.RegisterDespawnCallback(OnExitRange);
         }
 
@@ -253,6 +255,7 @@ namespace Simulator.Sensors
         private double GetSensorAngle(Collider col)
         {
             // angle is orientation of the obstacle in degrees as seen by radar, counterclockwise is positive
+            // 角度是雷达看到的障碍物的角度，逆时针为正
             double angle = -Vector3.SignedAngle(transform.forward, col.transform.forward, transform.up);
             if (angle > 90)
                 angle -= 180;

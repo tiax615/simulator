@@ -24,19 +24,19 @@ namespace Simulator.Sensors
     {
         [SensorParameter]
         [Range(1f, 100f)]
-        public float Frequency = 12.5f;
+        public float Frequency = 12.5f; // 更新频率
 
         [SensorParameter]
         public bool IgnoreMapOrigin = false;
 
         Queue<Tuple<double, Action>> MessageQueue =
-            new Queue<Tuple<double, Action>>();
+            new Queue<Tuple<double, Action>>(); // 定义了一个队列，用于储存GPS数据
 
         bool Destroyed = false;
-        bool IsFirstFixedUpdate = true;
-        double LastTimestamp;
+        bool IsFirstFixedUpdate = true; // 是否第一次执行FirstFixedUpdate
+        double LastTimestamp; // 上一次执行Publish()的时间戳
 
-        float NextSend;
+        float NextSend; // 没有用到
         uint SendSequence;
 
         IBridge Bridge;
@@ -69,23 +69,23 @@ namespace Simulator.Sensors
 
         void Publisher()
         {
-            var nextPublish = Stopwatch.GetTimestamp();
+            var nextPublish = Stopwatch.GetTimestamp(); // 初始化nextPublish为当前时间戳
 
             while (!Destroyed)
             {
-                long now = Stopwatch.GetTimestamp();
-                if (now < nextPublish)
+                long now = Stopwatch.GetTimestamp(); // 获取当前时间戳
+                if (now < nextPublish) // 当前时间小于nextPublish时，continue
                 {
                     Thread.Sleep(0);
                     continue;
                 }
 
-                Tuple<double, Action> msg = null;
+                Tuple<double, Action> msg = null; // 定义一个空的2元组
                 lock (MessageQueue)
                 {
                     if (MessageQueue.Count > 0)
                     {
-                        msg = MessageQueue.Dequeue();
+                        msg = MessageQueue.Dequeue(); // 如果MessageQueue中有元素，取出开头的数据
                     }
                 }
 
@@ -93,13 +93,13 @@ namespace Simulator.Sensors
                 {
                     try
                     {
-                        msg.Item2();
+                        msg.Item2(); // msg不为空时，获取元组中第二个分量的值（是个Action）
                     }
                     catch
                     {
                     }
-                    nextPublish = now + (long)(Stopwatch.Frequency / Frequency);
-                    LastTimestamp = msg.Item1;
+                    nextPublish = now + (long)(Stopwatch.Frequency / Frequency); // 将nextPublish加一个频率的时间
+                    LastTimestamp = msg.Item1; // 将Publish()的时间存在LastTimestamp中
                 }
             }
         }
@@ -115,17 +115,18 @@ namespace Simulator.Sensors
             {
                 lock (MessageQueue)
                 {
-                    MessageQueue.Clear();
+                    MessageQueue.Clear(); // 如果是第一次执行这里，清空队列MessageQueue
                 }
-                IsFirstFixedUpdate = false;
+                IsFirstFixedUpdate = false; // 如果是第一次执行这里，将IsFirstFixedUpdate设置为false
             }
 
-            var time = SimulatorManager.Instance.CurrentTime;
-            if (time < LastTimestamp)
+            var time = SimulatorManager.Instance.CurrentTime; // 从SimulatorManager单例获取当前时间
+            if (time < LastTimestamp) // 如果当前时间没到LastTimestamp，就return
             {
                 return;
             }
 
+            // 获取GPS数据
             var location = MapOrigin.GetGpsLocation(transform.position, IgnoreMapOrigin);
 
             var data = new GpsData()
@@ -146,6 +147,9 @@ namespace Simulator.Sensors
             
             lock (MessageQueue)
             {
+                // 创建一个Tuple，添加到MessageQueue的末尾
+                // Item1是time，当前时间
+                // Item2是(Action)(() => Writer.Write(data))，一个往Writer里写数据的data
                 MessageQueue.Enqueue(Tuple.Create(time, (Action)(() => Writer.Write(data))));
             }
         }

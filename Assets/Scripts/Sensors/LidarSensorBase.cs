@@ -220,10 +220,22 @@ namespace Simulator.Sensors
 
         public virtual void Init()
         {
+            // hd是HDAdditionalCameraData组件，这个组件看起来是引擎的
             var hd = SensorCamera.GetComponent<HDAdditionalCameraData>();
-            hd.hasPersistentHistory = true;
-            hd.customRender += CustomRender;
+
+            // Enable to retain history buffers even if the camera is disabled
+            // true的话，保留历史缓冲区，即使相机没有启用
+            hd.hasPersistentHistory = true; // 是否保留历史缓冲区，设置为是
+
+            // Event used to override HDRP rendering for this particular camera
+            // 事件，用于覆盖这个特定相机的HDRP渲染
+            hd.customRender += CustomRender;// 将CustomRender方法作为事件，给hd.customRender
+
+            // 从RuntimeSettings单例中，获取用于绘制点云的shader
+            // 再用这个shader新建材质，赋值给PointCloudMaterial
             PointCloudMaterial = new Material(RuntimeSettings.Instance.PointCloudShader);
+
+            // 获取名称为“Sensor Effects”的层索引
             PointCloudLayer = LayerMask.NameToLayer("Sensor Effects");
 
             Reset();
@@ -267,6 +279,7 @@ namespace Simulator.Sensors
 
         public virtual void Update()
         {
+            // 满足这些条件时，Reset()
             if (LaserCount != CurrentLaserCount ||
                 MeasurementsPerRotation != CurrentMeasurementsPerRotation ||
                 FieldOfView != CurrentFieldOfView ||
@@ -281,10 +294,10 @@ namespace Simulator.Sensors
                 }
             }
 
-            UpdateMarker.Begin();
+            UpdateMarker.Begin(); // UpdateMarker类型是ProfilerMarker("Lidar.Update")
 
             updated = false;
-            while (Jobs.Count > 0 && Jobs[0].IsCompleted)
+            while (Jobs.Count > 0 && Jobs[0].IsCompleted) // 把Jobs里的JobHandle都做完
             {
                 updated = true;
                 Jobs.RemoveAt(0);
@@ -293,15 +306,17 @@ namespace Simulator.Sensors
             bool jobsIssued = false;
             foreach (var req in Active)
             {
+                // 如果RenderTextureWidth和RenderTextureHeight无效
                 if (!req.TextureSet.IsValid(RenderTextureWidth, RenderTextureHeight))
                 {
                     // lost render texture, probably due to Unity window resize or smth
+                    // 失去渲染纹理，可能是由于Unity窗口的大小调整或smth
                     req.Readback.WaitForCompletion();
                     req.TextureSet.Release();
                 }
-                else if (req.Readback.done)
+                else if (req.Readback.done) // ReadRequset类型的req正常的情况下
                 {
-                    if (req.Readback.hasError)
+                    if (req.Readback.hasError) // 出错了，设定一个1s时间的IgnoreNewRquests
                     {
                         Debug.Log("Failed to read GPU texture");
                         req.TextureSet.Release();
@@ -310,8 +325,8 @@ namespace Simulator.Sensors
                     else
                     {
                         jobsIssued = true;
-                        var job = EndReadRequest(req, req.Readback.GetData<byte>());
-                        Jobs.Add(job);
+                        var job = EndReadRequest(req, req.Readback.GetData<byte>()); // 定义JobHandle类型的job
+                        Jobs.Add(job); // 往JobHandle列表中加入job
                         AvailableRenderTextures.Push(req.TextureSet);
 
                         if (req.Index + req.Count >= CurrentMeasurementsPerRotation)
@@ -321,18 +336,18 @@ namespace Simulator.Sensors
                     }
                 }
             }
-            Active.RemoveAll(req => req.Readback.done == true);
+            Active.RemoveAll(req => req.Readback.done == true); // 移除Active列表里.Readback.done标记为true的req
 
             if (jobsIssued)
             {
-                JobHandle.ScheduleBatchedJobs();
+                JobHandle.ScheduleBatchedJobs(); // 启动job
             }
 
-            if (IgnoreNewRquests > 0)
+            if (IgnoreNewRquests > 0) // 如果出错时间>0时
             {
-                IgnoreNewRquests -= Time.unscaledDeltaTime;
+                IgnoreNewRquests -= Time.unscaledDeltaTime; // 时间减一点
             }
-            else
+            else // 没有出错时
             {
                 float minAngle = 360.0f / CurrentMeasurementsPerRotation;
 
@@ -428,14 +443,14 @@ namespace Simulator.Sensors
             BeginReadMarker.Begin();
 
             SensorRenderTarget renderTarget = null;
-            if (AvailableRenderTextures.Count != 0)
-                renderTarget = AvailableRenderTextures.Pop();
+            if (AvailableRenderTextures.Count != 0) // AvailableRenderTextures类型是Stack<SensorRenderTarget>
+                renderTarget = AvailableRenderTextures.Pop(); // Pop出栈最上层的SensorRenderTarget
 
-            if (renderTarget == null)
+            if (renderTarget == null) // renderTarget是空时，创建一个默认的
             {
                 renderTarget = SensorRenderTarget.Create2D(RenderTextureWidth, RenderTextureHeight);
             }
-            else if (!renderTarget.IsValid(RenderTextureWidth, RenderTextureHeight))
+            else if (!renderTarget.IsValid(RenderTextureWidth, RenderTextureHeight)) // 宽高无效时，Release了再创建一个默认的
             {
                 renderTarget.Release();
                 renderTarget = SensorRenderTarget.Create2D(RenderTextureWidth, RenderTextureHeight);
@@ -443,9 +458,9 @@ namespace Simulator.Sensors
 
             activeTarget = renderTarget;
             SensorCamera.targetTexture = renderTarget;
-            SensorCamera.Render();
+            SensorCamera.Render(); // 手动渲染SensorCamera
 
-            req = new ReadRequest()
+            req = new ReadRequest() // 改变了req引用的值
             {
                 TextureSet = renderTarget,
                 Index = CurrentIndex,
