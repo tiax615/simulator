@@ -23,9 +23,9 @@ namespace Simulator.Map
 {
     public partial class MapOrigin : MonoBehaviour
     {
-        double R = 6378137;
+        double R = 6378137; // 地球椭球长半轴
 
-        const double K0 = 0.9996;
+        const double K0 = 0.9996; // 某系数（高斯-克吕格投影与UTM投影坐标转换近似系数）
 
         const double E = 0.00669438;
         const double E2 = E * E;
